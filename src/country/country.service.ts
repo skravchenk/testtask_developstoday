@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom, NotFoundError } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { Country } from './interfaces/country.interface';
 import { RegisterDto } from './dto/register.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +10,19 @@ import { Repository } from 'typeorm';
 import { hash } from 'argon2';
 import { AddHolidayDto } from './dto/addHoliday.dto';
 import { Holiday } from './entities/holiday.entity';
+import { GetPopulationRequest } from './interfaces/getPopulation.request';
+
+interface CountryFlag {
+  iso2: string;
+  iso3: string;
+  flag: string;
+}
+
+interface HolidayApiResponse {
+  name: string;
+  date: string;
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class CountryService {
@@ -50,7 +63,11 @@ export class CountryService {
     }
   }
 
-  async getCountryInfo(countryCode: string) {
+  async getCountryInfo(countryCode: string): Promise<{
+    borders: Country;
+    populationData: GetPopulationRequest['data'][0];
+    flag: string | null;
+  }> {
     try {
       const getBorders = await firstValueFrom(
         this.httpService.get<Country>(
@@ -60,16 +77,7 @@ export class CountryService {
       const borders = getBorders.data;
 
       const getPopulation = await firstValueFrom(
-        this.httpService.get<{
-          error: boolean;
-          msg: string;
-          data: Array<{
-            country: string;
-            code: string;
-            iso3: string;
-            populationCounts: Array<{ year: number; value: number }>;
-          }>;
-        }>(this.COUNTRY_POPULATION_URL),
+        this.httpService.get<GetPopulationRequest>(this.COUNTRY_POPULATION_URL),
       );
 
       const countryData = getPopulation.data.data.find(
@@ -77,14 +85,16 @@ export class CountryService {
       );
 
       if (!countryData) {
-        throw new NotFoundError(`Country with code ${countryCode} not found`);
+        throw new Error(`Country with code ${countryCode} not found`);
       }
 
       const allFlags = await firstValueFrom(
-        this.httpService.get(this.COUNTRY_FLAG_URL),
+        this.httpService.get<{ data: CountryFlag[] }>(this.COUNTRY_FLAG_URL),
       );
       const flags = allFlags.data?.data || [];
-      const flag = flags.find((c) => c.iso2 === countryCode || c.iso3 === countryCode);
+      const flag = flags.find(
+        (c) => c.iso2 === countryCode || c.iso3 === countryCode,
+      );
       const resultFlag = flag?.flag || null;
 
       return {
@@ -93,11 +103,13 @@ export class CountryService {
         flag: resultFlag,
       };
     } catch (error) {
-      throw new Error();
+      throw new Error(
+        error instanceof Error ? error.message : 'Unknown error occurred',
+      );
     }
   }
 
-  async register({ username, password }: RegisterDto) {
+  async register({ username, password }: RegisterDto): Promise<User> {
     const isUserExists = await this.usersRepository.findOne({
       where: {
         username,
@@ -106,13 +118,16 @@ export class CountryService {
     if (isUserExists) {
       throw new ConflictException('User already exists');
     }
-    password = await hash(password);
-    return this.usersRepository.save({ username, password });
+    const hashedPassword = await hash(password);
+    return this.usersRepository.save({ username, password: hashedPassword });
   }
 
-  async addHoliday(userId: string, addHolidayDto: AddHolidayDto) {
+  async addHoliday(
+    userId: string,
+    addHolidayDto: AddHolidayDto,
+  ): Promise<Omit<Holiday, 'id'>[]> {
     const holidays = await firstValueFrom(
-      this.httpService.get(
+      this.httpService.get<HolidayApiResponse[]>(
         `${this.ADD_HOLIDAY_SUBURL}${addHolidayDto.year}/${addHolidayDto.countryCode}`,
       ),
     );

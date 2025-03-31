@@ -16,5 +16,5 @@ export class Holiday {
   holidays: string[];
 
   @ManyToOne(() => User, (user) => user.holidays)
-  user: User;
+  user?: User;
 }

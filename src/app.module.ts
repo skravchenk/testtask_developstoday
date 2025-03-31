@@ -13,7 +13,7 @@ import * as Joi from 'joi';
         COUNTRY_BORDERS_URL: Joi.string().required(),
         COUNTRY_POPULATION_URL: Joi.string().required(),
         COUNTRY_FLAG_URL: Joi.string().required(),
-      })
+      }),
     }),
   ],
   controllers: [],
