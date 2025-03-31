@@ -1,0 +1,27 @@
+services:
+  app:
+    build:
+      dockerfile: Dockerfile
+    command: yarn start:dev
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:13-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1234pass
+      - POSTGRES_DB=test_task
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
