@@ -11,18 +11,8 @@ import { hash } from 'argon2';
 import { AddHolidayDto } from './dto/addHoliday.dto';
 import { Holiday } from './entities/holiday.entity';
 import { GetPopulationRequest } from './interfaces/getPopulation.request';
-
-interface CountryFlag {
-  iso2: string;
-  iso3: string;
-  flag: string;
-}
-
-interface HolidayApiResponse {
-  name: string;
-  date: string;
-  [key: string]: unknown;
-}
+import { CountryFlag } from './interfaces/countryFlag.interface';
+import { HolidayApiResponse } from './interfaces/holidayApiResponse.interface';
 
 @Injectable()
 export class CountryService {
